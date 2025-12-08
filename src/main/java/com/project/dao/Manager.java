@@ -93,7 +93,8 @@ public class Manager {
         try {
             tx = session.beginTransaction();
             // TODO: Crear l'objecte Autor amb el constructor i persistir-lo amb session.persist()
-            
+            autor = new Autor(nom);
+            session.persist(autor);
             tx.commit();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
@@ -120,7 +121,8 @@ public class Manager {
         try {
             tx = session.beginTransaction();
             // TODO: Crear l'objecte Llibre amb el constructor i persistir-lo
-            
+            llibre = new Llibre(isbn, titol, editorial, anyPublicacio);
+            session.persist(llibre);
             tx.commit();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
@@ -160,6 +162,16 @@ public class Manager {
             //      b) Afegeix l'autor a la seva col·lecció: llibreDB.getAutors().add(autor)
             //    Hibernate detectarà els canvis i actualitzarà la taula intermèdia.
             
+            Autor autor = session.find(Autor.class, autorId);
+            if (autor != null) {
+                autor.setNom(nom);
+                for (Llibre llibre : llibres) {
+                    Llibre llibreDB = session.find(Llibre.class, llibre.getLlibreId());
+                    if (llibreDB != null) {
+                        llibreDB.getAutors().add(autor);
+                    }
+                }
+            }
             tx.commit();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
@@ -186,7 +198,8 @@ public class Manager {
         try {
             tx = session.beginTransaction();
             // TODO: Crear l'objecte Biblioteca amb el constructor i persistir-lo
-            
+            biblio = new Biblioteca(nom, ciutat, adreca, telefon, email);
+            session.persist(biblio);
             tx.commit();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
@@ -216,7 +229,10 @@ public class Manager {
             // NOTA: Els objectes llibre i biblioteca passats com a paràmetre poden estar "detached"
             // (no associats a aquesta sessió). Pots usar session.merge() per reassociar-los
             // o simplement passar-los al constructor i persistir l'exemplar.
-            
+            Llibre llibreDB = session.merge(llibre);
+            Biblioteca biblioDB = session.merge(biblioteca);
+            exemplar = new Exemplar(codiBarres, llibreDB, biblioDB);
+            session.persist(exemplar);
             tx.commit();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
@@ -243,7 +259,8 @@ public class Manager {
         try {
             tx = session.beginTransaction();
             // TODO: Crear l'objecte Persona amb el constructor i persistir-lo
-            
+            persona = new Persona(dni, nom, telefon, email);
+            session.persist(persona);
             tx.commit();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
@@ -286,6 +303,16 @@ public class Manager {
             // 4. SI NO ESTÀ DISPONIBLE:
             //    Mostrar missatge informatiu per consola (System.out.println)
             
+            Exemplar exemplarDB = session.find(Exemplar.class, exemplar.getExemplarId());
+            Persona personaDB = session.find(Persona.class, persona.getPersonaId());
+            
+            if (exemplarDB != null && exemplarDB.isDisponible()) {
+                prestec = new Prestec(exemplarDB, personaDB, dataPrestec, dataRetornPrevista);
+                exemplarDB.setDisponible(false);
+                session.persist(prestec);
+            } else {
+                System.out.println("L'exemplar no està disponible per a préstec.");
+            }
             tx.commit();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
@@ -324,6 +351,15 @@ public class Manager {
             // 4. SI NO ES POT RETORNAR:
             //    Mostrar missatge informatiu
             
+            Prestec prestec = session.find(Prestec.class, prestecId);
+            if (prestec != null && prestec.isActiu()) {
+                prestec.setDataRetornReal(dataReal);
+                prestec.setActiu(false);
+                Exemplar exemplar = prestec.getExemplar();
+                exemplar.setDisponible(true);
+            } else {
+                System.out.println("No es pot retornar el préstec (no existeix o ja està tancat).");
+            }
             tx.commit();
         } catch (Exception e) {
             if (tx != null) tx.rollback();
@@ -352,7 +388,8 @@ public class Manager {
             // TODO: Escriure la consulta HQL
             // String hql = "SELECT DISTINCT l FROM Llibre l JOIN FETCH l.autors";
             // return session.createQuery(hql, Llibre.class).list();
-            return null;
+            String hql = "SELECT DISTINCT l FROM Llibre l JOIN FETCH l.autors";
+            return session.createQuery(hql, Llibre.class).list();
         }
     }
 
@@ -371,7 +408,8 @@ public class Manager {
             // TODO: Escriure la consulta HQL que retorni llibres en préstec actiu
             // Has de navegar: Prestec -> Exemplar -> Llibre per obtenir el títol
             // I també: Prestec -> Persona per obtenir el nom
-            return null;
+            String hql = "SELECT p.exemplar.llibre.titol, p.persona.nom FROM Prestec p WHERE p.actiu = true";
+            return session.createQuery(hql, Object[].class).list();
         }
     }
 
@@ -387,7 +425,8 @@ public class Manager {
     public static List<Object[]> findLlibresAmbBiblioteques() {
         try (Session session = factory.openSession()) {
             // TODO: Escriure la consulta HQL navegant des d'Exemplar
-            return null;
+            String hql = "SELECT e.llibre.titol, e.biblioteca.nom FROM Exemplar e";
+            return session.createQuery(hql, Object[].class).list();
         }
     }
 
@@ -401,7 +440,12 @@ public class Manager {
      */
     public static <T> Collection<T> listCollection(Class<T> clazz) {
         try (Session session = factory.openSession()) {
-            return session.createQuery("FROM " + clazz.getSimpleName(), clazz).list();
+            List<T> results = session.createQuery("FROM " + clazz.getSimpleName(), clazz).list();
+            // Force initialization of lazy proxies before closing session
+            for (T entity : results) {
+                org.hibernate.Hibernate.initialize(entity);
+            }
+            return results;
         }
     }
 

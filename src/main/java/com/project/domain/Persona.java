@@ -6,11 +6,15 @@ import java.util.HashSet;
 import java.util.Set;
 
 // TODO 1: @Entity
+@Entity
+@Table(name = "persones")
 public class Persona implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     // TODO 2: @Id
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long personaId;
 
     private String dni;
@@ -19,6 +23,7 @@ public class Persona implements Serializable {
     private String email;
 
     // TODO 3: @OneToMany cap a Prestec
+    @OneToMany(mappedBy = "persona", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<Prestec> prestecs = new HashSet<>();
 
     public Persona() {}
