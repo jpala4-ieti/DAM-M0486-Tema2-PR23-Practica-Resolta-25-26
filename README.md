@@ -50,12 +50,12 @@ Si prefereixes executar el projecte pas a pas o tens problemes amb els scripts, 
 #### 1. Execució amb Maven (mvn exec)
 Executa la classe principal directament des de Maven:
 ```bash
-mvn exec:java -q "-Dexec.mainClass=com.project.Main"
+mvn clean compile test exec:java -q "-Dexec.mainClass=com.project.Main"
 ```
 
 Si volguessis executar la utilitat de SQLite per veure les taules creades:
 ```bash
-mvn exec:java -q "-Dexec.mainClass=com.project.sqliteutils.MainSQLite"
+mvn clean compile test exec:java -q "-Dexec.mainClass=com.project.sqliteutils.MainSQLite"
 ```
 
 #### 2. Execució directa amb Java (classpath)
